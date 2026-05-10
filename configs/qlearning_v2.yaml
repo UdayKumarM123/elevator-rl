@@ -1,0 +1,33 @@
+# Q-Learning Config Version 2
+# Run: python train.py --config configs/qlearning_v2.yaml
+# Git tag: exp-qlearning-2
+
+experiment:
+  run_id: "qlearning_v2"
+  description: "Extended Q-Learning run with refined exploration and lower LR"
+  algorithm: "Q-Learning"
+  policy_save_path: "policies/policy_v2_explored.pkl"
+  results_save_path: "experiments/results_2.csv"
+  log_path: "experiments/log.json"
+  git_tag: "exp-qlearning-2"
+
+environment:
+  num_floors: 10
+  max_capacity: 8
+  episode_length: 200
+  arrival_rate: 0.3
+  seed: 42
+
+training:
+  episodes: 2000
+  eval_every: 100
+  print_every: 100
+  save_policy_at: [500, 1000, 2000]
+
+agent:
+  alpha: 0.05             # lower learning rate for finer convergence
+  gamma: 0.99
+  epsilon: 1.0
+  epsilon_decay: 0.997    # slower decay for more exploration
+  epsilon_min: 0.01       # lower floor — more exploitation at end
+  seed: 42

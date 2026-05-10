@@ -1,0 +1,33 @@
+# Q-Learning Config Version 1
+# Run: python train.py --config configs/qlearning_v1.yaml
+# Git tag: exp-qlearning-1
+
+experiment:
+  run_id: "qlearning_v1"
+  description: "Initial Q-Learning run with high exploration"
+  algorithm: "Q-Learning"
+  policy_save_path: "policies/policy_v1.pkl"
+  results_save_path: "experiments/results_1.csv"
+  log_path: "experiments/log.json"
+  git_tag: "exp-qlearning-1"
+
+environment:
+  num_floors: 10
+  max_capacity: 8
+  episode_length: 200
+  arrival_rate: 0.3
+  seed: 42
+
+training:
+  episodes: 500
+  eval_every: 50          # evaluate (greedy) every N episodes
+  print_every: 50         # print progress every N episodes
+  save_policy_at: [250, 500]
+
+agent:
+  alpha: 0.1              # learning rate
+  gamma: 0.99             # discount factor
+  epsilon: 1.0            # initial exploration rate
+  epsilon_decay: 0.990    # per-episode decay multiplier
+  epsilon_min: 0.05       # floor for epsilon
+  seed: 42
