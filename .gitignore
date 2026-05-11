@@ -40,3 +40,10 @@ policies/policy_v2_explored_ep*.pkl
 
 # Logs
 *.log
+
+docx/
+lxml/
+lxml-6.1.0.dist-info/
+python_docx-1.2.0.dist-info/
+typing_extensions-4.15.0.dist-info/
+typing_extensions.py

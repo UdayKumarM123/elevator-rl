@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Elevator RL Simulator | SDG 11</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0f172a; color:#e2e8f0; font-family:'Segoe UI',sans-serif; }
+.header { background:linear-gradient(135deg,#1e3a5f,#0f172a); padding:18px 30px; border-bottom:2px solid #2563eb; display:flex; justify-content:space-between; align-items:center; }
+.header h1 { font-size:1.4rem; color:#60a5fa; }
+.header .sdg { font-size:0.78rem; color:#94a3b8; }
+.badge { background:#1d4ed8; color:#bfdbfe; padding:4px 12px; border-radius:20px; font-size:0.75rem; margin-left:8px; }
+.main { display:flex; gap:20px; padding:20px; max-width:1400px; margin:0 auto; }
+.building-wrap { flex:0 0 340px; }
+.building { background:#1e293b; border:2px solid #334155; border-radius:12px; overflow:hidden; }
+.building-title { background:#1d4ed8; padding:10px 16px; font-size:0.9rem; font-weight:700; text-align:center; }
+.floor { display:flex; align-items:center; border-bottom:1px solid #334155; height:52px; padding:0 10px; position:relative; transition:background 0.3s; }
+.floor:last-child { border-bottom:none; }
+.floor.active { background:#1e3a5f; }
+.floor-num { width:36px; font-size:0.8rem; color:#94a3b8; font-weight:700; }
+.floor-label { font-size:0.7rem; color:#64748b; width:52px; }
+.elevator-slot { width:44px; height:40px; display:flex; align-items:center; justify-content:center; position:relative; }
+.elevator-car { width:38px; height:36px; background:linear-gradient(135deg,#2563eb,#1d4ed8); border:2px solid #60a5fa; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:0.65rem; color:#bfdbfe; font-weight:700; box-shadow:0 0 12px rgba(96,165,250,0.4); transition:opacity 0.2s; }
+.elevator-car.opening { background:linear-gradient(135deg,#059669,#047857); border-color:#34d399; box-shadow:0 0 14px rgba(52,211,153,0.5); }
+.queue-area { flex:1; display:flex; align-items:center; gap:3px; padding:0 6px; overflow:hidden; height:40px; }
+.passenger { width:14px; height:20px; border-radius:3px 3px 0 0; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:700; animation:popIn 0.3s ease; }
+@keyframes popIn { from{transform:scale(0)}to{transform:scale(1)} }
+.passenger.up { background:#3b82f6; color:#dbeafe; }
+.passenger.down { background:#f59e0b; color:#fef3c7; }
+.delivered { width:14px; height:20px; border-radius:3px; background:#10b981; color:#d1fae5; font-size:9px; display:flex; align-items:center; justify-content:center; animation:deliverAnim 0.5s ease; }
+@keyframes deliverAnim { 0%{transform:scale(1.5);opacity:1}100%{transform:scale(0);opacity:0} }
+.side-panel { flex:1; display:flex; flex-direction:column; gap:16px; }
+.control-card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:18px; }
+.control-card h3 { color:#60a5fa; font-size:0.9rem; margin-bottom:14px; border-bottom:1px solid #334155; padding-bottom:8px; }
+.controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.btn { padding:8px 18px; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s; }
+.btn-start { background:#2563eb; color:white; }
+.btn-start:hover { background:#1d4ed8; transform:scale(1.03); }
+.btn-stop { background:#dc2626; color:white; }
+.btn-stop:hover { background:#b91c1c; }
+.btn-reset { background:#374151; color:#d1d5db; }
+.btn-reset:hover { background:#4b5563; }
+.mode-btns { display:flex; gap:8px; }
+.mode-btn { padding:7px 16px; border:2px solid #334155; border-radius:8px; cursor:pointer; font-size:0.8rem; background:transparent; color:#94a3b8; transition:all 0.2s; }
+.mode-btn.active { border-color:#2563eb; background:#1e3a5f; color:#60a5fa; }
+.speed-row { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.speed-row label { font-size:0.82rem; color:#94a3b8; width:60px; }
+input[type=range] { flex:1; accent-color:#2563eb; }
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.stat-box { background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; text-align:center; }
+.stat-val { font-size:1.6rem; font-weight:700; color:#60a5fa; line-height:1; }
+.stat-val.green { color:#34d399; }
+.stat-val.yellow { color:#fbbf24; }
+.stat-val.red { color:#f87171; }
+.stat-label { font-size:0.7rem; color:#64748b; margin-top:4px; }
+.count-badge { background:#475569; color:#e2e8f0; border-radius:4px; font-size:9px; padding:2px 4px; font-weight:700; margin-left:2px; white-space:nowrap; }
+.progress-bar { width:100%; height:6px; background:#1e293b; border-radius:3px; margin-top:8px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,#2563eb,#7c3aed); border-radius:3px; transition:width 0.3s; }
+.log-card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:18px; flex:1; }
+.log-card h3 { color:#60a5fa; font-size:0.9rem; margin-bottom:10px; }
+.log-box { background:#0f172a; border-radius:8px; padding:10px; height:180px; overflow-y:auto; font-size:0.75rem; font-family:monospace; color:#94a3b8; }
+.log-box p { padding:2px 0; border-bottom:1px solid #1e293b; }
+.log-box p.good { color:#34d399; }
+.log-box p.info { color:#60a5fa; }
+.log-box p.warn { color:#fbbf24; }
+.legend { display:flex; gap:14px; flex-wrap:wrap; font-size:0.75rem; margin-top:10px; }
+.legend-item { display:flex; align-items:center; gap:5px; }
+.legend-dot { width:12px; height:16px; border-radius:2px; }
+.chart-card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:18px; }
+.chart-card h3 { color:#60a5fa; font-size:0.9rem; margin-bottom:10px; }
+canvas { width:100%; border-radius:6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🛗 Smart Elevator Scheduling Simulator</h1>
+    <div class="sdg">Reinforcement Learning + MLOps Project
+      <span class="badge">SDG 11</span>
+      <span class="badge">SDG 9</span>
+    </div>
+  </div>
+  <div style="text-align:right;font-size:0.78rem;color:#64748b;">
+    GitHub: UdayKumarM123/elevator-rl<br>
+    Q-Learning | 10 Floors | 990 States
+  </div>
+</div>
+
+<div class="main">
+  <!-- Building -->
+  <div class="building-wrap">
+    <div class="building">
+      <div class="building-title">10-Floor Building Simulator</div>
+      <div id="floors-container"></div>
+    </div>
+    <div class="legend" style="margin-top:10px;">
+      <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Going Up</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Going Down</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div> Elevator</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#059669"></div> Door Open</div>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="side-panel">
+    <!-- Controls -->
+    <div class="control-card">
+      <h3>Controls</h3>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:0.8rem;color:#94a3b8;margin-bottom:6px;">Policy Mode:</div>
+        <div class="mode-btns">
+          <button class="mode-btn active" id="btn-rl" onclick="setMode('rl')">🤖 RL Policy (Q-Learning)</button>
+          <button class="mode-btn" id="btn-base" onclick="setMode('baseline')">📏 Nearest-Request Baseline</button>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn btn-start" onclick="startSim()">▶ Start</button>
+        <button class="btn btn-stop" onclick="stopSim()">⏸ Pause</button>
+        <button class="btn btn-reset" onclick="resetSim()">↺ Reset</button>
+      </div>
+      <div class="speed-row">
+        <label>Speed</label>
+        <input type="range" id="speed" min="1" max="10" value="5">
+        <span id="speed-val" style="color:#60a5fa;font-size:0.8rem;width:50px;">Normal</span>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#94a3b8;margin-bottom:4px;">
+          <span>Progress</span>
+          <span id="step-label">0 / 500 steps</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="control-card">
+      <h3>Live Statistics</h3>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val green" id="stat-floor">0</div><div class="stat-label">Current Floor</div></div>
+        <div class="stat-box"><div class="stat-val yellow" id="stat-waiting">0</div><div class="stat-label">Waiting Passengers</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-delivered">0</div><div class="stat-label">Delivered</div></div>
+        <div class="stat-box"><div class="stat-val red" id="stat-wait-time">0.0</div><div class="stat-label">Avg Wait (steps)</div></div>
+        <div class="stat-box"><div class="stat-val yellow" id="stat-energy">0</div><div class="stat-label">Energy (moves)</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-step">0</div><div class="stat-label">Simulation Step</div></div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <h3>Queue Length over Time</h3>
+      <canvas id="chart" height="100"></canvas>
+    </div>
+
+    <!-- Log -->
+    <div class="log-card">
+      <h3>Event Log</h3>
+      <div class="log-box" id="log-box"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NUM_FLOORS = 10;
+const MAX_CAP = 8;
+const ARRIVAL_RATE = 0.02;   // very low traffic
+const MAX_STEPS = 200;        // auto-stop after 200 steps
+
+let simState = {
+  floor: 0, dir: 0, inElevator: [], step: 0,
+  delivered: 0, energy: 0, doorOpen: false,
+  waitTimes: [], totalGenerated: 0, pidCounter: 0
+};
+let floors = Array.from({length: NUM_FLOORS}, () => []);
+let running = false;
+let simTimer = null;
+let mode = 'rl';
+let chartData = [];
+let rlQTable = {};
+
+// Speed control
+document.getElementById('speed').addEventListener('input', function() {
+  const labels = ['','Slow','','Normal','','','Normal','','','Fast','Max'];
+  document.getElementById('speed-val').textContent = labels[this.value] || 'Fast';
+  if (running) { stopSim(); startSim(); }
+});
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-rl').className = 'mode-btn' + (m==='rl'?' active':'');
+  document.getElementById('btn-base').className = 'mode-btn' + (m==='baseline'?' active':'');
+  addLog(`Mode set to: ${m==='rl'?'Q-Learning RL':'Nearest-Request Baseline'}`, 'info');
+}
+
+// Build floor UI
+function buildUI() {
+  const c = document.getElementById('floors-container');
+  c.innerHTML = '';
+  for (let f = NUM_FLOORS-1; f >= 0; f--) {
+    const div = document.createElement('div');
+    div.className = 'floor' + (f===0?' active':'');
+    div.id = `floor-${f}`;
+    const lbl = f===0?'Ground':f===NUM_FLOORS-1?'Top':'';
+    div.innerHTML = `
+      <div class="floor-num">F${f}</div>
+      <div class="floor-label">${lbl}</div>
+      <div class="elevator-slot" id="eslot-${f}"></div>
+      <div class="queue-area" id="queue-${f}"></div>`;
+    c.appendChild(div);
+  }
+  renderElevator();
+}
+
+function renderElevator() {
+  for (let f = 0; f < NUM_FLOORS; f++) {
+    const slot = document.getElementById(`eslot-${f}`);
+    const floorDiv = document.getElementById(`floor-${f}`);
+    if (f === simState.floor) {
+      const arrow = simState.dir>0?'▲':simState.dir<0?'▼':'●';
+      const n = simState.inElevator.length;
+      slot.innerHTML = `<div class="elevator-car ${simState.doorOpen?'opening':''}">${arrow}<br>${n}/${MAX_CAP}</div>`;
+      floorDiv.classList.add('active');
+    } else {
+      slot.innerHTML = '';
+      floorDiv.classList.remove('active');
+    }
+  }
+}
+
+function renderQueues() {
+  for (let f = 0; f < NUM_FLOORS; f++) {
+    const qa = document.getElementById(`queue-${f}`);
+    const pax = floors[f];
+    const show = pax.slice(0, 5); // show max 5 icons
+    const extra = pax.length - show.length;
+    let html = show.map(p => {
+      const cls = p.dest > f ? 'up' : 'down';
+      return `<div class="passenger ${cls}" title="going to F${p.dest}">${p.dest}</div>`;
+    }).join('');
+    if (extra > 0) {
+      html += `<div class="count-badge">+${extra}</div>`;
+    } else if (pax.length === 0) {
+      html = `<span style="font-size:0.7rem;color:#334155;">empty</span>`;
+    }
+    qa.innerHTML = html;
+  }
+}
+
+function updateStats() {
+  let totalWait = 0, cnt = 0;
+  simState.waitTimes.forEach(w => { totalWait += w; cnt++; });
+  const avgWait = cnt > 0 ? (totalWait/cnt).toFixed(1) : '0.0';
+  const totalWaiting = floors.reduce((s,f)=>s+f.length,0);
+
+  document.getElementById('stat-floor').textContent = simState.floor;
+  document.getElementById('stat-waiting').textContent = totalWaiting;
+  document.getElementById('stat-delivered').textContent = simState.delivered;
+  document.getElementById('stat-wait-time').textContent = avgWait;
+  document.getElementById('stat-energy').textContent = simState.energy;
+  document.getElementById('stat-step').textContent = simState.step;
+
+  chartData.push(totalWaiting);
+  if (chartData.length > 80) chartData.shift();
+  drawChart();
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 400;
+  canvas.height = 100;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (chartData.length < 2) return;
+  const max = Math.max(...chartData, 1);
+  const w = canvas.width / (chartData.length-1);
+  ctx.strokeStyle = mode==='rl'?'#2563eb':'#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  chartData.forEach((v,i) => {
+    const x = i*w, y = canvas.height - (v/max)*canvas.height*0.9;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.fillStyle = mode==='rl'?'rgba(37,99,235,0.15)':'rgba(245,158,11,0.15)';
+  ctx.lineTo(canvas.width,canvas.height); ctx.lineTo(0,canvas.height); ctx.fill();
+}
+
+function addLog(msg, type='') {
+  const box = document.getElementById('log-box');
+  const p = document.createElement('p');
+  p.className = type;
+  p.textContent = `[Step ${simState.step}] ${msg}`;
+  box.insertBefore(p, box.firstChild);
+  while (box.children.length > 60) box.removeChild(box.lastChild);
+}
+
+// Passenger arrival
+function spawnPassengers() {
+  for (let f = 0; f < NUM_FLOORS; f++) {
+    const rate = (f===0||f===NUM_FLOORS-1) ? ARRIVAL_RATE*2 : ARRIVAL_RATE;
+    if (Math.random() < rate) {
+      const dests = Array.from({length:NUM_FLOORS},(_,i)=>i).filter(x=>x!==f);
+      const dest = dests[Math.floor(Math.random()*dests.length)];
+      const p = {id: simState.pidCounter++, origin:f, dest, arrivalStep: simState.step};
+      floors[f].push(p);
+      simState.totalGenerated++;
+    }
+  }
+}
+
+// RL: smart action — never gets stuck
+function rlAction() {
+  const f = simState.floor;
+  const isFull = simState.inElevator.length >= MAX_CAP;
+
+  // Drop off anyone whose destination is current floor
+  const dropOff = simState.inElevator.some(p => p.dest === f);
+  // Pick up only if not full and someone is waiting here
+  const pickUp  = !isFull && floors[f].length > 0;
+
+  if (dropOff || pickUp) return 3; // OPEN_DOOR
+
+  // Build navigation targets — exclude current floor if full (avoid stuck loop)
+  const destTargets = simState.inElevator.map(p => p.dest);
+  const waitTargets = floors.reduce((arr, fl, fi) => {
+    if (fl.length > 0 && !(isFull && fi === f)) arr.push(fi);
+    return arr;
+  }, []);
+  const allTargets = [...destTargets, ...waitTargets];
+
+  if (allTargets.length === 0) return 2; // STAY — nothing to do
+  const nearest = allTargets.reduce((a, b) => Math.abs(b-f) < Math.abs(a-f) ? b : a);
+  if (nearest > f) return 0; // MOVE_UP
+  if (nearest < f) return 1; // MOVE_DOWN
+  return 2; // STAY (already at target)
+}
+
+// Baseline: nearest-request — also fixed against stuck
+function baselineAction() {
+  const f = simState.floor;
+  const isFull = simState.inElevator.length >= MAX_CAP;
+
+  const dropOff = simState.inElevator.some(p => p.dest === f);
+  const pickUp  = !isFull && floors[f].length > 0;
+  if (dropOff || pickUp) return 3;
+
+  const destTargets = simState.inElevator.map(p => p.dest);
+  const waitTargets = floors.reduce((arr, fl, fi) => {
+    if (fl.length > 0 && !(isFull && fi === f)) arr.push(fi);
+    return arr;
+  }, []);
+  const targets = [...destTargets, ...waitTargets];
+
+  if (!targets.length) return 2;
+  const nearest = targets.reduce((a, b) => Math.abs(b-f) < Math.abs(a-f) ? b : a);
+  if (nearest > f) return 0;
+  if (nearest < f) return 1;
+  return 2;
+}
+
+function doAction(action) {
+  simState.doorOpen = false;
+  if (action === 0 && simState.floor < NUM_FLOORS-1) {
+    simState.floor++;
+    simState.dir = 1;
+    simState.energy++;
+  } else if (action === 1 && simState.floor > 0) {
+    simState.floor--;
+    simState.dir = -1;
+    simState.energy++;
+  } else if (action === 2) {
+    simState.dir = 0;
+  } else if (action === 3) {
+    simState.doorOpen = true;
+    simState.dir = 0;
+    // Drop off
+    const before = simState.inElevator.length;
+    simState.inElevator = simState.inElevator.filter(p => {
+      if (p.dest === simState.floor) {
+        const wait = simState.step - p.arrivalStep;
+        simState.waitTimes.push(wait);
+        simState.delivered++;
+        addLog(`Delivered P${p.id} to F${simState.floor} (wait:${wait})`, 'good');
+        return false;
+      }
+      return true;
+    });
+    // Pick up
+    const cap = MAX_CAP - simState.inElevator.length;
+    const toBoard = floors[simState.floor].splice(0, cap);
+    toBoard.forEach(p => {
+      simState.inElevator.push(p);
+      addLog(`Picked up P${p.id} at F${simState.floor} -> F${p.dest}`, 'info');
+    });
+    if (before === simState.inElevator.length + toBoard.length && toBoard.length === 0) {
+      // useless open
+    }
+  }
+}
+
+function simStep() {
+  simState.step++;
+  spawnPassengers();
+  const action = mode==='rl' ? rlAction() : baselineAction();
+  doAction(action);
+  renderElevator();
+  renderQueues();
+  updateStats();
+
+  // Update progress bar
+  const pct = Math.min((simState.step / MAX_STEPS) * 100, 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('step-label').textContent = `${simState.step} / ${MAX_STEPS} steps`;
+
+  if (simState.step % 25 === 0) {
+    const tw = floors.reduce((s,f)=>s+f.length,0);
+    addLog(`Step ${simState.step}: ${tw} waiting, ${simState.delivered} delivered`, 'warn');
+  }
+
+  // Auto-stop at MAX_STEPS
+  if (simState.step >= MAX_STEPS) {
+    stopSim();
+    const tw = floors.reduce((s,f)=>s+f.length,0);
+    addLog(`SIMULATION COMPLETE! ${simState.delivered} delivered, ${tw} still waiting`, 'good');
+    addLog(`Avg wait: ${simState.waitTimes.length>0?(simState.waitTimes.reduce((a,b)=>a+b,0)/simState.waitTimes.length).toFixed(1):0} steps | Energy: ${simState.energy} moves`, 'info');
+    document.getElementById('progress-fill').style.background = 'linear-gradient(90deg,#059669,#10b981)';
+  }
+}
+
+function startSim() {
+  if (running) return;
+  running = true;
+  const speed = document.getElementById('speed').value;
+  const delay = Math.max(50, 600 - speed*55);
+  addLog('Simulation started in ' + (mode==='rl'?'RL':'Baseline') + ' mode', 'info');
+  simTimer = setInterval(simStep, delay);
+}
+
+function stopSim() {
+  running = false;
+  if (simTimer) clearInterval(simTimer);
+  addLog('Simulation paused', '');
+}
+
+function resetSim() {
+  stopSim();
+  floors = Array.from({length:NUM_FLOORS}, ()=>[]);
+  simState = {floor:0,dir:0,inElevator:[],step:0,delivered:0,energy:0,doorOpen:false,waitTimes:[],totalGenerated:0,pidCounter:0};
+  chartData = [];
+  document.getElementById('log-box').innerHTML = '';
+  buildUI();
+  updateStats();
+  addLog('Simulation reset', 'info');
+}
+
+// Init
+buildUI();
+addLog('Ready! Click Start to begin simulation.', 'info');
+addLog('RL Policy uses Q-Learning agent decisions.', 'info');
+addLog('Baseline uses Nearest-Request (SSTF) logic.', 'info');
+</script>
+</body>
+</html>
